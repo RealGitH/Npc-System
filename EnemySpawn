@@ -1,4 +1,4 @@
--- This Code is all a local Script
+--This code is handle in a local script
 
 local NpcFolder = game.Workspace:WaitForChild('NpcFolder') -- Folder in which stores An Npc Model
 local EggNpc = game.ReplicatedStorage:WaitForChild('EggMinion') 
@@ -102,13 +102,7 @@ local function attack(character : Model, size, damageNum, deleteTime)
 
 				if not table.find(dmgTable, dmgPart) then
 					table.insert(dmgTable,dmgPart )
-					
-						--local SwordFolder = script.Parent.StabSound:GetChildren()
-						--local chosenSound = SwordFolder[math.random(1,#SwordFolder)].Name
-						--currentSound = script.Parent.StabSound:WaitForChild(chosenSound)
-
-						--local randomRotation = math.random(-45,45)
-
+				
 						applyDmg(damageNum) -- Calls the apply damage function
 
 				end
@@ -194,7 +188,7 @@ for i, v in ipairs(NpcFolder:GetChildren()) do -- Cycles through Npc folder, and
 			tween:Play()
 			currentTween = tween
 		end
-	end) -- when this tween is completed do the other tween
+	end) -- when this tween is completed do the tween
 	
 	CanChase = false
 	local currentHumanoidRootPart : BasePart = nil
@@ -241,6 +235,8 @@ for i, v in ipairs(NpcFolder:GetChildren()) do -- Cycles through Npc folder, and
 	local HumanoidRootPartPositionTable = {}
 	local alreadingChasing = false
 	
+	--tween:Cancel()
+	--tween2:Cancel()
 	local AttackDebounce = true
 	
 	local Dead = false
@@ -248,7 +244,7 @@ for i, v in ipairs(NpcFolder:GetChildren()) do -- Cycles through Npc folder, and
 	spawn(function()
 		while true do
 			task.wait()
-			if CanChase == true then -- If true
+			if CanChase == true then -- If true, then continue
 				if currentHumanoidRootPart then -- Check for the HumanoidRootPart it is chasing
 				
 					local currentHumanoidPartPosition = currentHumanoidRootPart.Position
@@ -314,7 +310,6 @@ for i, v in ipairs(NpcFolder:GetChildren()) do -- Cycles through Npc folder, and
 					local HillTween = TweenService:Create(EggPrimaryPart, FallTweenInfo, {CFrame = v*randomRotation})
 					local TransparencyTween = TweenService:Create(EggSphere, FallTweenInfo, {Transparency = TransparencyIncrement*i})
 					EggPrimaryPart.Anchored = true
-					--EggPrimaryPart.CFrame = v;
 					HillTween:Play()
 					TransparencyTween:Play()
 					print('Nice Lets goo')
@@ -325,7 +320,7 @@ for i, v in ipairs(NpcFolder:GetChildren()) do -- Cycles through Npc folder, and
 				end
 			end -- 
 			
-			EggSphere.Transparency = 1 -- Turns the npc invisable, makeing it look like the npc disappeared 
+			EggSphere.Transparency = 1 -- Turns the npc invisable, making it look like the npc disappeared 
 			
 			task.wait(10)
 			
