@@ -1,0 +1,344 @@
+-- This Code is all a local Script
+
+local NpcFolder = game.Workspace:WaitForChild('NpcFolder') -- Folder in which stores An Npc Model
+local EggNpc = game.ReplicatedStorage:WaitForChild('EggMinion') 
+
+local ModuleScriptFolder = game.ReplicatedStorage:WaitForChild('ModuleScript')
+local makeAnimation = require(ModuleScriptFolder.Animation)
+local Motion = require(ModuleScriptFolder:WaitForChild('Motion')) --   gets a moduleScript that displays the Egg death Animation
+
+local MainModule = require(ModuleScriptFolder:WaitForChild('MainModule')) -- Gets a Module that has a function for animation
+local Pathfiniding = require(ModuleScriptFolder:WaitForChild('Pathfinding')) -- A pathfinding module
+
+local TweenService = game:GetService('TweenService')
+local tweenInfo = TweenInfo.new(4,Enum.EasingStyle.Linear)
+local FallTweenInfo = TweenInfo.new(.1, Enum.EasingStyle.Linear)
+
+local ChaseTweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut) 
+
+local EffectFolder = game.ReplicatedStorage:WaitForChild('Effects') -- gets a Particle Part
+local NotifyEffect = EffectFolder:WaitForChild('NotifyEffect') -- Gets a part that has a notify Particle
+
+local DebrisService = game:GetService('Debris') -- Debris server used to delete a part after specified time
+
+local player = game.Players.LocalPlayer -- gets the local Player
+
+local character = player.Character
+
+if not character or not character.Parent then
+	character = player.CharacterAdded:wait()
+end -- Make sure to wait for the character to fully load to cause no eror
+
+local HumanoidRootPart = character:WaitForChild('HumanoidRootPart') -- Waits for the RootPart to load
+local event = character:WaitForChild('Damage') -- Gets a RemoteEvent
+
+local dmgTable = {} -- dmgTable, insert players that need to be damaged
+local alreadyDamagned = {}
+
+local function applyDmg(damageNum)
+
+	local damage = damageNum
+	for index = 1, #dmgTable do
+		local v = dmgTable[index]
+
+		if v:FindFirstChild('Humanoid') then
+			local human = v:FindFirstChild('Humanoid')
+			
+			if human:IsA('Humanoid') then
+				event:FireServer(damageNum,dmgTable, alreadyDamagned) -- Fires a remote event, to start damaging players in the server, so it does not only cause damage in the client
+			end
+			
+		end		
+		
+	end
+	
+end -- A function thats loops through dmgTable to dmgThem
+
+local function ClearTable(tbl)
+	for key in pairs(tbl) do
+		tbl[key] = nil
+	end
+end -- A function to clear out a table
+
+local function WeldParts(part1, Part2)
+
+	local weld = Instance.new('Weld')
+	weld.Part0 = part1
+	weld.Part1 = Part2
+	weld.C0 = weld.Part0.CFrame:ToObjectSpace(weld.Part1.CFrame)
+	weld.Parent = weld.Part0
+
+	return weld
+end -- Used to Weld a hitbox together
+
+
+local function attack(character : Model, size, damageNum, deleteTime)
+
+	local currentSound
+
+	local hitBox = Instance.new('Part')
+	hitBox.Size = size
+	local lookVector = hitBox.Size.Z/2+character.HumanoidRootPart.Size.Z/2
+	hitBox.Anchored = true
+	hitBox.CanCollide = false
+	hitBox.Transparency = 1
+	hitBox.CFrame = character.HumanoidRootPart.CFrame+character.HumanoidRootPart.CFrame.LookVector*lookVector
+	
+	-- Makes the hitbox
+
+	local weld = WeldParts(hitBox, character.HumanoidRootPart)
+	hitBox.Anchored = false --Welds the hitbox
+
+	hitBox.Parent = game.Workspace.ignoreFolder
+
+	--Apply Damage
+	hitBox.Touched:Connect(function(other)
+		local part = other.Parent
+		if part:FindFirstChild('Humanoid') and game.Players:GetPlayerFromCharacter(part) then
+
+			if part ~= character then
+
+				local dmgPart = other:FindFirstAncestorWhichIsA('Model')
+
+				if not table.find(dmgTable, dmgPart) then
+					table.insert(dmgTable,dmgPart )
+					
+						--local SwordFolder = script.Parent.StabSound:GetChildren()
+						--local chosenSound = SwordFolder[math.random(1,#SwordFolder)].Name
+						--currentSound = script.Parent.StabSound:WaitForChild(chosenSound)
+
+						--local randomRotation = math.random(-45,45)
+
+						applyDmg(damageNum) -- Calls the apply damage function
+
+				end
+			end
+		end
+	end)
+	wait(deleteTime)
+	hitBox:Destroy() -- Destroy the hitbox
+
+	ClearTable(dmgTable)
+	hitBox:Destroy()
+
+	ClearTable(dmgTable) -- Clar the table
+	ClearTable(alreadyDamagned)
+end
+
+
+local function Notify(EggPosition, Offset)
+	local NotifyEffectClone = NotifyEffect:Clone()
+	NotifyEffectClone.Position = EggPosition + Offset
+	NotifyEffectClone.Parent = game.Workspace
+	
+	local Particle = NotifyEffectClone:WaitForChild('ParticleEmitter')
+
+	Particle:Emit(1)
+	
+	DebrisService:AddItem(NotifyEffectClone,5)
+end -- Makes a notify effect
+
+player.CharacterAdded:Connect(function(NewCharacter)
+	HumanoidRootPart = NewCharacter:WaitForChild('HumanoidRootPart')
+end) -- When charater loads, puts the new RootPart as a variable
+
+for i, v in ipairs(NpcFolder:GetChildren()) do -- Cycles through Npc folder, and put an Npc Model in each of them
+	local EggClone = EggNpc:Clone()
+	local EggNpcClone = EggClone:WaitForChild('Egg Minion Animation 2')
+	EggNpcClone.Parent = v
+	
+	local Egg = EggNpcClone
+	local EggPrimaryPart = EggNpcClone.PrimaryPart
+	local EggSphere = EggNpcClone:WaitForChild('Sphere.001')
+
+	local WalkPoint : BasePart = v:WaitForChild('WalkPoint1')
+	local WalkPoint2 : BasePart = v:WaitForChild('WalkPoint2')
+	
+	WalkPoint.Transparency = 1
+	WalkPoint2. Transparency = 1 
+	
+	-- makes a roaming animation.
+
+	local roam = true
+	
+	local tween = TweenService:Create(EggPrimaryPart, tweenInfo, {
+		CFrame = CFrame.new(WalkPoint.Position)*CFrame.Angles(0,math.rad(180),0);
+	})
+
+	local tween2 = TweenService:Create(EggPrimaryPart, tweenInfo, {
+		CFrame = CFrame.new(WalkPoint2.Position)*CFrame.Angles(0,math.rad(360),0);
+	})
+	
+	local currentTween
+	
+	EggSphere.Position = EggPrimaryPart.Position
+
+	EggPrimaryPart.CFrame = CFrame.new(EggPrimaryPart.Position,WalkPoint.Position)*CFrame.Angles(0,math.rad(180),0)
+	tween:Play()
+	currentTween = tween
+	
+	
+	tween.Completed:Connect(function()
+		if roam == true then
+			EggPrimaryPart.CFrame = CFrame.new(EggPrimaryPart.Position,WalkPoint2.Position)*CFrame.Angles(0,math.rad(0),0)
+			tween2:Play()
+
+			currentTween = tween2
+		end
+	end) --When tween is completed move to the other location
+
+	tween2.Completed:Connect(function()
+		if roam == true then
+			
+			EggPrimaryPart.CFrame = CFrame.new(EggPrimaryPart.Position,WalkPoint.Position)*CFrame.Angles(0,math.rad(0),0)
+			tween:Play()
+			currentTween = tween
+		end
+	end) -- when this tween is completed do the other tween
+	
+	CanChase = false
+	local currentHumanoidRootPart : BasePart = nil
+	
+	local Humanoid = EggNpcClone:WaitForChild('Humanoid')
+	local playingAnimation = {}
+
+	local walkAnimation : AnimationTrack = makeAnimation.MakeAnimation('13836101242',Humanoid, playingAnimation) -- returns a walk animation from the MainModule
+	local AttackAnimation : AnimationTrack = makeAnimation.MakeAnimation('13869163600',Humanoid, playingAnimation)
+
+	
+	walkAnimation:Play() -- Starts walking animation
+	
+	Pathfiniding.PathFinding(EggPrimaryPart, Humanoid, EggNpcClone)
+	
+	spawn(function()
+		
+		while true do -- Loops to check if the humanoidRootPart is near the egg Npc
+			task.wait()
+			if roam == true then
+				
+				if (HumanoidRootPart.Position-EggPrimaryPart.Position).Magnitude < 20 then
+
+					MainModule.MakeSound('138014729', EggPrimaryPart, 5, 0.221)
+					Notify(EggPrimaryPart.Position, Vector3.new(0,3,0))
+					currentHumanoidRootPart = HumanoidRootPart
+
+					roam = false -- Stops Roaming
+					CanChase = true -- turns CanChase variable to true
+
+					tween:Cancel()
+					tween2:Cancel() -- Stops both tween
+
+				end
+
+
+				
+			end
+		end
+		
+		
+	end)
+	
+	local HumanoidRootPartPositionTable = {}
+	local alreadingChasing = false
+	
+	local AttackDebounce = true
+	
+	local Dead = false
+	
+	spawn(function()
+		while true do
+			task.wait()
+			if CanChase == true then -- If true
+				if currentHumanoidRootPart then -- Check for the HumanoidRootPart it is chasing
+				
+					local currentHumanoidPartPosition = currentHumanoidRootPart.Position
+					
+					if Dead == false then
+						walkAnimation:AdjustSpeed(4)
+
+						EggPrimaryPart.Anchored = false
+					end
+					
+					
+					if (HumanoidRootPart.Position-EggPrimaryPart.Position).Magnitude >= 50 and Dead == false then
+						CanChase = false
+						roam = true
+						EggPrimaryPart.Anchored = true
+						tween:Play()
+					end
+					
+					if (HumanoidRootPart.Position-EggPrimaryPart.Position).Magnitude <= 10 and AttackDebounce and Dead == false then
+						AttackDebounce = false
+						walkAnimation:Stop()
+						attack(EggNpcClone,Vector3.new(4, 3.818, 7), 20, 0.25)
+						AttackAnimation:Play()
+						MainModule.MakeSound('9125466463', EggPrimaryPart, 5, 0.221, 20)
+						AttackAnimation.Stopped:Wait()
+						walkAnimation:Play()
+						
+						spawn(function()
+							task.wait(3)
+							AttackDebounce = true
+						end)
+						
+						
+					end
+					
+				end
+			end
+		end
+	end)
+	
+	Humanoid.HealthChanged:Connect(function(NewHealth)
+		if NewHealth <= 0 then -- If the npc is dead, it starts the aniamtion
+			Dead = true
+			roam = false
+			CanChase = false
+			tween:Cancel()
+			tween2:Cancel()
+			
+			local PathBlackList = {EggPrimaryPart, script.Parent, game.Workspace.ignoreFolder} -- Puts it self and ignoreFolder(All the parts you want to ignore when casting a raycast) in a raycast blacklist 
+			local BackPosition = EggPrimaryPart.CFrame:PointToWorldSpace(Vector3.new(0,0,-20))
+			local CurvePoints,g ,x0, v0, t = Motion.GetPath(EggPrimaryPart.CFrame, BackPosition, PathBlackList)
+			local randomX = math.random(-180,180)
+			local randomY = math.random(-180,180)
+			local randomZ = math.random(-180,180)
+			
+			local AmounntOfCurvePoints = #CurvePoints
+			
+			local TransparencyIncrement = 1/AmounntOfCurvePoints
+			
+			local randomRotation = CFrame.Angles(math.rad(randomX),math.rad(randomY),math.rad(randomZ)) -- Puts the egg to a random rotation
+			for i,v in ipairs(CurvePoints) do	-- Gets all the position from the Motion moduleFolder (A module folder which calcuates an arc, Credit to EgoMoose)
+				if v ~= CFrame.new(0,0,0) then
+					local HillTween = TweenService:Create(EggPrimaryPart, FallTweenInfo, {CFrame = v*randomRotation})
+					local TransparencyTween = TweenService:Create(EggSphere, FallTweenInfo, {Transparency = TransparencyIncrement*i})
+					EggPrimaryPart.Anchored = true
+					--EggPrimaryPart.CFrame = v;
+					HillTween:Play()
+					TransparencyTween:Play()
+					print('Nice Lets goo')
+					HillTween.Completed:Wait()
+					if i == AmounntOfCurvePoints-1 then
+						break
+					end
+				end
+			end -- 
+			
+			EggSphere.Transparency = 1 -- Turns the npc invisable, makeing it look like the npc disappeared 
+			
+			task.wait(10)
+			
+			 -- After ten seconds, reset the npc, make it roam again, and make it full hp.
+			Humanoid.Health = 100
+			CanChase = false
+			roam = true
+			Dead = false
+			EggSphere.CFrame = WalkPoint2.CFrame
+			EggSphere.Transparency = 0
+			tween:Play()
+			
+		end
+	end)
+	
+end
